@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TOTAL_QUESTIONS } from '@/lib/constants';
+import {
+  useGetNextQuestionMutation,
+  useSubmitAnswerMutation,
+  useFinishInterviewMutation,
+} from '@/store/api/interviewApi';
 import type { StoredSessionInfo, NextQuestionResponse } from '@/lib/types';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52; // 326.7
@@ -24,8 +29,17 @@ interface QuestionState {
 export default function InterviewRoom({ sessionId }: { sessionId: number }) {
   const router = useRouter();
 
-  // Session info from localStorage
-  const [sessionInfo, setSessionInfo] = useState<StoredSessionInfo | null>(null);
+  // RTK Query mutations for the interview flow
+  const [getNextQuestion] = useGetNextQuestionMutation();
+  const [submitAnswerMutation] = useSubmitAnswerMutation();
+  const [finishInterviewMutation] = useFinishInterviewMutation();
+
+  // Session info from localStorage – initialised lazily to avoid setState-in-effect
+  const [sessionInfo] = useState<StoredSessionInfo | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem(`session_${sessionId}`);
+    return raw ? (JSON.parse(raw) as StoredSessionInfo) : null;
+  });
 
   // UI state
   const [screen, setScreen] = useState<Screen>('loading');
@@ -64,8 +78,6 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
   const totalQRef = useRef(TOTAL_QUESTIONS);
 
   useEffect(() => {
-    const raw = localStorage.getItem(`session_${sessionId}`);
-    if (raw) setSessionInfo(JSON.parse(raw));
     setupSpeechRecognition();
     loadNextQuestion();
     return () => {
@@ -111,15 +123,6 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
     speechRecRef.current = rec;
   }
 
-  // ── API helper ────────────────────────────────────────────────
-  async function apiFetch(path: string, body?: unknown) {
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return res.json();
-  }
 
   // ── Timer ─────────────────────────────────────────────────────
   function clearTimerInterval() {
@@ -160,7 +163,7 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
     setScreen('loading');
     resetTimer();
 
-    const data: NextQuestionResponse | { done: true } = await apiFetch(`/api/proxy/interview/${sessionId}/next-question`);
+    const data: NextQuestionResponse | { done: true } = await getNextQuestion(sessionId).unwrap();
     if ('done' in data && data.done) {
       await finishInterview();
       return;
@@ -307,11 +310,12 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
       audioBase64 = await blobToBase64(blob);
     }
 
-    await apiFetch(`/api/proxy/interview/${sessionId}/submit-answer`, {
-      question_id: currentQuestionRef.current?.id,
+    await submitAnswerMutation({
+      sessionId,
+      question_id: currentQuestionRef.current!.id,
       answer_text: transcript.trim(),
       audio_base64: audioBase64,
-    });
+    }).unwrap();
 
     const q = currentQuestionRef.current!;
     updateProgress(q.number, q.number, q.totalQuestions);
@@ -333,10 +337,10 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
   // ── Finish ────────────────────────────────────────────────────
   async function finishInterview() {
     setScreen('done');
-    const res = await apiFetch(`/api/proxy/interview/${sessionId}/finish`);
+    await finishInterviewMutation(sessionId).unwrap();
     setEvalStatus('Evaluation complete! Redirecting…');
     setTimeout(() => {
-      router.push(res.redirect ?? `/results/${sessionId}`);
+      router.push(`/results/${sessionId}`);
     }, 1500);
   }
 

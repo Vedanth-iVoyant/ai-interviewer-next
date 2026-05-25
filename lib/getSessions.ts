@@ -1,19 +1,24 @@
+import { cookies } from 'next/headers';
 import type { InterviewSession } from './types';
-import { MOCK_SESSIONS } from './mockData';
 
 const DJANGO_URL = process.env.DJANGO_URL ?? 'http://localhost:8000';
 
 export async function getSessions(): Promise<InterviewSession[]> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('tg_auth_token')?.value;
+
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (token) headers['Authorization'] = `Token ${token}`;
+
   try {
-    const res = await fetch(`${DJANGO_URL}/api/sessions/`, {
+    const res = await fetch(`${DJANGO_URL}/api/v1/sessions/`, {
       cache: 'no-store',
-      headers: { 'Accept': 'application/json' },
+      headers,
     });
-    if (!res.ok) return MOCK_SESSIONS;
+    if (!res.ok) return [];
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) return MOCK_SESSIONS;
-    return data;
+    return Array.isArray(data) ? data : [];
   } catch {
-    return MOCK_SESSIONS;
+    return [];
   }
 }

@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/authSlice';
-import type { LoginResponse } from '@/lib/types';
 
 function TalentGateIcon() {
   return (
@@ -15,55 +14,79 @@ function TalentGateIcon() {
   );
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!username.trim()) { setError('Please enter your username.'); return; }
-    if (!password.trim()) { setError('Please enter your password.'); return; }
+
+    if (!username.trim()) { setError('Please enter a username.'); return; }
+    if (!password) { setError('Please enter a password.'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
       });
-      const data: LoginResponse & { error?: string } = await res.json();
+      const data: { success?: boolean; token?: string; user_id?: number; username?: string; error?: string } = await res.json();
 
       if (!res.ok || data.error) {
-        setError(data.error ?? 'Login failed. Please check your credentials.');
+        setError(data.error ?? 'Registration failed. Please try again.');
         setLoading(false);
         return;
       }
 
-      // Store credentials in Redux state
       dispatch(setCredentials({
-        token: data.token,
-        userId: data.user_id,
-        username: data.username,
+        token: data.token!,
+        userId: data.user_id!,
+        username: data.username!,
       }));
 
-      // Persist to localStorage for page refreshes
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_username', data.username);
-      localStorage.setItem('auth_user_id', String(data.user_id));
+      localStorage.setItem('auth_token', data.token!);
+      localStorage.setItem('auth_username', data.username!);
+      localStorage.setItem('auth_user_id', String(data.user_id!));
 
-      const redirect = searchParams.get('redirect');
-      router.push(redirect && redirect.startsWith('/') ? redirect : '/dashboard');
+      router.push('/dashboard');
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
     }
   }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.7rem 0.9rem',
+    borderRadius: 8,
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)',
+    fontSize: '0.9rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+    opacity: loading ? 0.7 : 1,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: '0.45rem',
+  };
 
   return (
     <div style={{
@@ -126,10 +149,10 @@ export default function LoginPage() {
           padding: '2rem',
         }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem', color: 'var(--text)' }}>
-            Sign in to continue
+            Create an account
           </h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.75rem' }}>
-            Enter your credentials to access the platform.
+            Choose a username and password to get started.
           </p>
 
           {error && (
@@ -154,72 +177,41 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '0.45rem',
-              }}>
-                Username
-              </label>
+              <label style={labelStyle}>Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="e.g. admin"
+                placeholder="e.g. john_doe"
                 autoComplete="username"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 0.9rem',
-                  borderRadius: 8,
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  fontFamily: 'var(--font)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  opacity: loading ? 0.7 : 1,
-                }}
+                style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '0.45rem',
-              }}>
-                Password
-              </label>
+              <label style={labelStyle}>Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
+                placeholder="Min. 8 characters"
+                autoComplete="new-password"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 0.9rem',
-                  borderRadius: 8,
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  fontFamily: 'var(--font)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  opacity: loading ? 0.7 : 1,
-                }}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repeat your password"
+                autoComplete="new-password"
+                disabled={loading}
+                style={inputStyle}
               />
             </div>
 
@@ -251,25 +243,25 @@ export default function LoginPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  Signing in…
+                  Creating account…
                 </>
               ) : (
-                'Sign In →'
+                'Create Account →'
               )}
             </button>
           </form>
         </div>
 
-        {/* Sign up link */}
+        {/* Login link */}
         <p style={{
           textAlign: 'center',
           marginTop: '1.25rem',
           fontSize: '0.875rem',
           color: 'var(--text-muted)',
         }}>
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
-            Sign up
+          Already have an account?{' '}
+          <Link href="/login" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+            Sign in
           </Link>
         </p>
       </div>

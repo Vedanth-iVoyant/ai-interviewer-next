@@ -171,8 +171,12 @@ const mainNav = [
   { href: "/analytics", label: "Analytics", Icon: BarChartIcon },
 ];
 
+const AUTH_PATHS = ['/login', '/signup'];
+
 export default function Sidebar() {
   const pathname = usePathname();
+
+  if (AUTH_PATHS.some(p => pathname.startsWith(p))) return null;
 
   function isActive(href: string, label: string) {
     if (label === "New Interview") return pathname === "/";

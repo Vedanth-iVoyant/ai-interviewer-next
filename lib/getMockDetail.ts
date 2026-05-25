@@ -246,6 +246,7 @@ export function getMockDetail(sessionId: number): SessionDetail | null {
       question_text: tpl.text,
       difficulty: tpl.difficulty,
       answer_text: rawScore !== null ? (isGood ? tpl.answerHigh : tpl.answerLow) : null,
+      answered_at: rawScore !== null ? session.completed_at : null,
       technical_accuracy: rawScore,
       answer_feedback: rawScore !== null
         ? isGood
@@ -258,6 +259,9 @@ export function getMockDetail(sessionId: number): SessionDetail | null {
       key_points_missed: rawScore !== null
         ? isGood ? tpl.missedPoints : [...tpl.missedPoints, ...tpl.keyPoints.slice(Math.ceil(tpl.keyPoints.length / 2))]
         : [],
+      clarity_score: rawScore !== null ? parseFloat((rawScore * 0.9).toFixed(1)) : null,
+      confidence_score: rawScore !== null ? parseFloat((rawScore * 0.88).toFixed(1)) : null,
+      structure_score: rawScore !== null ? parseFloat((rawScore * 0.92).toFixed(1)) : null,
     };
   });
 
@@ -301,7 +305,7 @@ export function getMockDetail(sessionId: number): SessionDetail | null {
         : ['Work on communication clarity', 'Practice structuring technical explanations', 'Build confidence', 'Review core domain concepts'],
   } : null;
 
-  const report: EvaluationReport | null = hasScores ? {
+  const evaluation_report: EvaluationReport | null = hasScores ? {
     summary: `${session.candidate_name} completed the ${session.domain.toUpperCase()} technical interview covering ${session.topics.join(', ')}. Technical score: ${techScore.toFixed(1)}/10, Communication: ${commScore.toFixed(1)}/10. ${session.result === 'pass' ? 'Performance exceeded the hiring threshold, demonstrating solid domain knowledge.' : 'Performance fell below the required hiring threshold with notable gaps in core topics.'}`,
     recommendation:
       session.result === 'pass'
@@ -309,7 +313,35 @@ export function getMockDetail(sessionId: number): SessionDetail | null {
         : `Not recommended for this role at this time. ${session.candidate_name} should strengthen foundations in ${session.topics.slice(0, 2).join(' and ')} before the next attempt.`,
     overall_score: overallScore,
     result: session.result ?? 'fail',
+    technical_highlights:
+      level === 'high'
+        ? [`Strong grasp of ${session.topics[0]}`, `Well-applied concepts in ${session.topics[1] ?? session.topics[0]}`]
+        : level === 'medium'
+        ? [`Basic understanding of ${session.topics[0]}`]
+        : [],
+    communication_highlights:
+      level === 'high'
+        ? ['Clear and structured responses', 'Good use of technical vocabulary']
+        : level === 'medium'
+        ? ['Generally understandable answers']
+        : [],
   } : null;
 
-  return { ...session, questions, soft_skills, report };
+  return {
+    id: session.id,
+    candidate_name: session.candidate_name,
+    candidate_email: session.candidate_email,
+    domain: session.domain,
+    topics: session.topics,
+    status: session.status,
+    created_at: session.created_at,
+    completed_at: session.completed_at,
+    technical_score: session.technical_score,
+    communication_score: session.communication_score,
+    overall_score: session.overall_score,
+    result: session.result,
+    evaluation_report,
+    questions,
+    soft_skills,
+  };
 }

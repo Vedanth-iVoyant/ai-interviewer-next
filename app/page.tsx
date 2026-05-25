@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DOMAIN_TOPICS, DOMAIN_ICONS, DOMAIN_LABELS } from "@/lib/constants";
+import { useCreateSessionMutation } from "@/store/api/interviewApi";
 import type { StoredSessionInfo } from "@/lib/types";
 
 export default function HomePage() {
   const router = useRouter();
+  const [createSession, { isLoading: loading }] = useCreateSessionMutation();
   const [candidateName, setCandidateName] = useState("");
   const [candidateEmail, setCandidateEmail] = useState("");
   const [selectedDomain, setSelectedDomain] = useState("java");
@@ -15,7 +17,6 @@ export default function HomePage() {
     DOMAIN_TOPICS["java"] ?? [],
   );
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const domains = Object.keys(DOMAIN_TOPICS);
 

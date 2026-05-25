@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(ls -la \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\" | head -50)",
+      "Read(//c/iVoyant/Projects/aiinterviewr-backend/**)",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(npm install *)",
+      "Bash(find store *)",
+      "Bash(dir /s /b store)",
+      "Bash(dir \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\" /B)",
+      "Bash(ls /mnt/c/iVoyant/Projects/aiinterviewr-backend/interviewer/)",
+      "Read(//mnt/c/iVoyant/Projects/aiinterviewr-backend/**)",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\" -Recurse | Where-Object { $_.Name -match \"\\\\.py$\" -and $_.FullName -notmatch \"venv\" } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\app\" -Recurse | Where-Object { $_.Name -match \"\\\\.py$\" } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\interviewer\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\ai_interviewer\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\interviewer\" -Force | ForEach-Object { \"$\\($_.Attributes\\) $\\($_.Name\\)\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\app\" -Force | ForEach-Object { \"$\\($_.Attributes\\) $\\($_.Name\\)\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\iVoyant\\\\Projects\\\\aiinterviewr-backend\\\\app\\\\routers\" | ForEach-Object { $_.Name })"
+    ]
+  }
+}

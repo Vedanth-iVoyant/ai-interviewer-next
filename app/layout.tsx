@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import { JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Sidebar from './Sidebar';
+import AppShell from './AppShell';
+import { StoreProvider } from '@/store/provider';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -24,17 +26,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <Sidebar />
-          <main style={{
-            flex: 1,
-            marginLeft: 'var(--sidebar-width)',
-            minHeight: '100vh',
-            background: 'var(--bg)',
-          }}>
-            {children}
-          </main>
-        </div>
+        <StoreProvider>
+          <div style={{ display: 'flex', minHeight: '100vh' }}>
+            <Sidebar />
+            <AppShell>{children}</AppShell>
+          </div>
+        </StoreProvider>
       </body>
     </html>
   );

@@ -1,27 +1,16 @@
 import type { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
 
 const DJANGO_URL = process.env.DJANGO_URL ?? 'http://localhost:8000';
 
-let cachedCsrf: string | null = null;
-
-async function getDjangoCsrfToken(): Promise<string> {
-  if (cachedCsrf) return cachedCsrf;
-  try {
-    const res = await fetch(`${DJANGO_URL}/`, {
-      method: 'GET',
-      cache: 'no-store',
-    });
-    const setCookie = res.headers.get('set-cookie') ?? '';
-    const match = setCookie.match(/csrftoken=([^;,\s]+)/);
-    cachedCsrf = match?.[1] ?? '';
-  } catch {
-    cachedCsrf = '';
-  }
-  return cachedCsrf;
-}
-
 function buildDjangoPath(pathSegments: string[]): string {
   return `/${pathSegments.join('/')}/`;
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('tg_auth_token')?.value;
+  return token ? { Authorization: `Token ${token}` } : {};
 }
 
 export async function POST(
@@ -31,16 +20,12 @@ export async function POST(
   const { path } = await params;
   const djangoPath = buildDjangoPath(path);
   const body = await request.text();
-
-  const csrfToken = await getDjangoCsrfToken();
+  const authHeaders = await getAuthHeaders();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...authHeaders,
   };
-  if (csrfToken) {
-    headers['Cookie'] = `csrftoken=${csrfToken}`;
-    headers['X-CSRFToken'] = csrfToken;
-  }
 
   try {
     const djangoRes = await fetch(`${DJANGO_URL}${djangoPath}`, {
@@ -51,7 +36,7 @@ export async function POST(
 
     const data = await djangoRes.json();
     return Response.json(data, { status: djangoRes.status });
-  } catch (err) {
+  } catch {
     return Response.json(
       { error: `Failed to reach Django backend at ${DJANGO_URL}${djangoPath}` },
       { status: 502 }
@@ -65,11 +50,12 @@ export async function GET(
 ) {
   const { path } = await params;
   const djangoPath = buildDjangoPath(path);
+  const authHeaders = await getAuthHeaders();
 
   try {
     const djangoRes = await fetch(`${DJANGO_URL}${djangoPath}`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json', ...authHeaders },
       cache: 'no-store',
     });
 

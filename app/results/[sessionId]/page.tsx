@@ -1,21 +1,11 @@
+'use client';
+
+import { use } from 'react';
 import Link from 'next/link';
-import type { SessionDetail, InterviewQuestion } from '@/lib/types';
-import { getMockDetail } from '@/lib/getMockDetail';
+import { useGetResultsQuery } from '@/store/api/interviewApi';
+import type { InterviewQuestion, SessionDetail } from '@/lib/types';
 
-const DJANGO_URL = process.env.DJANGO_URL ?? 'http://localhost:8000';
-
-async function getSessionDetail(sessionId: number): Promise<SessionDetail | null> {
-  try {
-    const res = await fetch(`${DJANGO_URL}/api/sessions/${sessionId}/`, {
-      cache: 'no-store',
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!res.ok) return getMockDetail(sessionId);
-    return res.json();
-  } catch {
-    return getMockDetail(sessionId);
-  }
-}
+// ── Sub-components ────────────────────────────────────────────────────────
 
 function ProgressBar({ value, max = 10 }: { value: number; max?: number }) {
   return (
@@ -46,6 +36,15 @@ function ScoreCard({ value, label }: { value: number | null; label: string }) {
   );
 }
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginTop: '1rem' }}>
+      <h4 style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: '0.5rem' }}>{title}</h4>
+      {children}
+    </div>
+  );
+}
+
 function QAItem({ q }: { q: InterviewQuestion }) {
   const scoreColor = (q.technical_accuracy ?? 0) >= 7 ? 'var(--pass)' : (q.technical_accuracy ?? 0) >= 4 ? 'var(--warn)' : 'var(--fail)';
   const diffColors = { easy: 'rgba(34,197,94,0.15)', medium: 'rgba(249,115,22,0.15)', hard: 'rgba(239,68,68,0.15)' };
@@ -53,25 +52,14 @@ function QAItem({ q }: { q: InterviewQuestion }) {
 
   return (
     <details style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-      <summary style={{
-        display: 'flex', alignItems: 'center', gap: '1rem',
-        padding: '1rem 1.2rem', cursor: 'pointer', listStyle: 'none',
-      }}>
+      <summary style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.2rem', cursor: 'pointer', listStyle: 'none' }}>
         <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: 30 }}>Q{q.question_number}</span>
         <span style={{ flex: 1, fontSize: '0.9rem' }}>{q.question_text.slice(0, 80)}{q.question_text.length > 80 ? '…' : ''}</span>
-        <span style={{
-          display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--mono)',
-          background: diffColors[q.difficulty], color: diffText[q.difficulty],
-        }}>{q.difficulty}</span>
-        <span style={{
-          display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--mono)',
-          background: 'var(--surface2)', color: 'var(--text-muted)',
-        }}>{q.topic}</span>
-        {q.technical_accuracy !== null ? (
-          <span style={{ fontFamily: 'var(--mono)', fontSize: '0.85rem', fontWeight: 700, minWidth: 50, textAlign: 'right', color: scoreColor }}>
-            {q.technical_accuracy.toFixed(1)}/10
-          </span>
-        ) : <span style={{ color: 'var(--text-muted)', minWidth: 50, textAlign: 'right', fontSize: '0.85rem' }}>N/A</span>}
+        <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--mono)', background: diffColors[q.difficulty], color: diffText[q.difficulty] }}>{q.difficulty}</span>
+        <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--mono)', background: 'var(--surface2)', color: 'var(--text-muted)' }}>{q.topic}</span>
+        {q.technical_accuracy !== null
+          ? <span style={{ fontFamily: 'var(--mono)', fontSize: '0.85rem', fontWeight: 700, minWidth: 50, textAlign: 'right', color: scoreColor }}>{q.technical_accuracy.toFixed(1)}/10</span>
+          : <span style={{ color: 'var(--text-muted)', minWidth: 50, textAlign: 'right', fontSize: '0.85rem' }}>N/A</span>}
         <span style={{ color: 'var(--text-muted)' }}>▼</span>
       </summary>
 
@@ -89,9 +77,7 @@ function QAItem({ q }: { q: InterviewQuestion }) {
           <Section title="Key Points Covered">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
               {q.key_points_covered.map((p, i) => (
-                <span key={i} style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--accent2)', padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.78rem' }}>
-                  ✓ {p}
-                </span>
+                <span key={i} style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--accent2)', padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.78rem' }}>✓ {p}</span>
               ))}
             </div>
           </Section>
@@ -100,24 +86,13 @@ function QAItem({ q }: { q: InterviewQuestion }) {
           <Section title="Key Points Missed">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
               {q.key_points_missed.map((p, i) => (
-                <span key={i} style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--fail)', padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.78rem' }}>
-                  ✗ {p}
-                </span>
+                <span key={i} style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--fail)', padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.78rem' }}>✗ {p}</span>
               ))}
             </div>
           </Section>
         )}
       </div>
     </details>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginTop: '1rem' }}>
-      <h4 style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: '0.5rem' }}>{title}</h4>
-      {children}
-    </div>
   );
 }
 
@@ -133,37 +108,48 @@ function SoftSkillBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-export default async function ResultsPage(props: { params: Promise<{ sessionId: string }> }) {
-  const { sessionId } = await props.params;
-  const id = parseInt(sessionId, 10);
-  const session = await getSessionDetail(id);
+// ── Loading / Error states ─────────────────────────────────────────────────
 
-  if (!session) {
-    return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '4rem 1rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Results Unavailable</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Django needs to expose <code style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>GET /api/sessions/{'{id}'}/</code> as a JSON endpoint to display results.
-        </p>
-        <Link href="/" style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-          padding: '0.6rem 1.4rem', borderRadius: 8,
-          fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600,
-          background: 'var(--accent)', color: '#fff', border: 'none',
-        }}>
-          Start New Interview
+function LoadingState() {
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '4rem 1rem', textAlign: 'center' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Loading Results…</h2>
+      <p style={{ color: 'var(--text-muted)' }}>Fetching evaluation report from server.</p>
+      <div style={{ width: 200, height: 6, background: 'var(--surface2)', borderRadius: 3, overflow: 'hidden', margin: '1.5rem auto 0' }}>
+        <div className="animate-pulse-custom" style={{ height: '100%', borderRadius: 3, width: '60%', background: 'linear-gradient(90deg, var(--accent), var(--accent2))' }} />
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '4rem 1rem', textAlign: 'center' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Results Unavailable</h2>
+      <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{message}</p>
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', borderRadius: 8, fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600, background: 'var(--accent)', color: '#fff', border: 'none' }}>
+          Dashboard
+        </Link>
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', borderRadius: 8, fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)' }}>
+          New Interview
         </Link>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  const report = session.report;
+// ── Main results view ──────────────────────────────────────────────────────
+
+function ResultsView({ session }: { session: SessionDetail }) {
+  const report = session.evaluation_report;
   const softSkills = session.soft_skills;
 
   return (
     <>
-      {/* Results header */}
+      {/* Header */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '2.5rem 0', marginBottom: '2.5rem' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
@@ -176,12 +162,7 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
           </div>
 
           {session.result ? (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              padding: '1.2rem 2rem', borderRadius: 12,
-              border: `2px solid ${session.result === 'pass' ? 'var(--pass)' : 'var(--fail)'}`,
-              background: session.result === 'pass' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-            }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.2rem 2rem', borderRadius: 12, border: `2px solid ${session.result === 'pass' ? 'var(--pass)' : 'var(--fail)'}`, background: session.result === 'pass' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)' }}>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: session.result === 'pass' ? 'var(--pass)' : 'var(--fail)' }}>
                 {session.result === 'pass' ? '✅ PASS' : '❌ FAIL'}
               </div>
@@ -191,16 +172,13 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.2rem 2rem', borderRadius: 12, border: '2px solid var(--border)' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                EVALUATING…
-              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-muted)' }}>EVALUATING…</div>
             </div>
           )}
         </div>
       </div>
 
       <div className="fade-in" style={{ maxWidth: 900, margin: '0 auto', padding: '0 1rem 3rem' }}>
-
         {/* Score cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
           <ScoreCard value={session.technical_score} label="Technical Score" />
@@ -218,6 +196,26 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
             {report.recommendation && (
               <div style={{ marginTop: '1rem', padding: '0.8rem 1rem', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, fontSize: '0.9rem' }}>
                 💡 <strong>Recommendation:</strong> {report.recommendation}
+              </div>
+            )}
+            {(report.technical_highlights?.length > 0 || report.communication_highlights?.length > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                {report.technical_highlights?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: '0.5rem' }}>Technical Highlights</div>
+                    {report.technical_highlights.map((h, i) => (
+                      <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0.2rem 0' }}>• {h}</div>
+                    ))}
+                  </div>
+                )}
+                {report.communication_highlights?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: '0.5rem' }}>Communication Highlights</div>
+                    {report.communication_highlights.map((h, i) => (
+                      <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0.2rem 0' }}>• {h}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -247,9 +245,7 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>STRENGTHS</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {softSkills.strengths.map((s, i) => (
-                    <span key={i} style={{ padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', background: 'rgba(34,197,94,0.1)', color: 'var(--accent2)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                      ✓ {s}
-                    </span>
+                    <span key={i} style={{ padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', background: 'rgba(34,197,94,0.1)', color: 'var(--accent2)', border: '1px solid rgba(34,197,94,0.2)' }}>✓ {s}</span>
                   ))}
                 </div>
               </div>
@@ -259,9 +255,7 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>AREAS TO IMPROVE</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {softSkills.improvements.map((imp, i) => (
-                    <span key={i} style={{ padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', background: 'rgba(249,115,22,0.1)', color: 'var(--warn)', border: '1px solid rgba(249,115,22,0.2)' }}>
-                      ↑ {imp}
-                    </span>
+                    <span key={i} style={{ padding: '0.25rem 0.7rem', borderRadius: 20, fontSize: '0.78rem', background: 'rgba(249,115,22,0.1)', color: 'var(--warn)', border: '1px solid rgba(249,115,22,0.2)' }}>↑ {imp}</span>
                   ))}
                 </div>
               </div>
@@ -275,34 +269,42 @@ export default async function ResultsPage(props: { params: Promise<{ sessionId: 
             ❓ Question-by-Question Breakdown
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-            {session.questions.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>No questions recorded for this session.</p>
-            ) : (
-              session.questions.map(q => <QAItem key={q.id} q={q} />)
-            )}
+            {session.questions.length === 0
+              ? <p style={{ color: 'var(--text-muted)' }}>No questions recorded for this session.</p>
+              : session.questions.map(q => <QAItem key={q.id} q={q} />)}
           </div>
         </div>
 
         {/* Actions */}
         <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.6rem 1.4rem', borderRadius: 8,
-            fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600,
-            background: 'var(--accent)', color: '#fff', border: 'none',
-          }}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', borderRadius: 8, fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600, background: 'var(--accent)', color: '#fff', border: 'none' }}>
             Start New Interview
           </Link>
-          <Link href="/dashboard" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.6rem 1.4rem', borderRadius: 8,
-            fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600,
-            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)',
-          }}>
+          <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', borderRadius: 8, fontFamily: 'var(--font)', fontSize: '0.9rem', fontWeight: 600, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)' }}>
             View All Sessions
           </Link>
         </div>
       </div>
     </>
   );
+}
+
+// ── Page entry point ───────────────────────────────────────────────────────
+
+export default function ResultsPage(props: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = use(props.params);
+  const id = parseInt(sessionId, 10);
+
+  const { data, isLoading, error } = useGetResultsQuery(id);
+
+  if (isLoading) return <LoadingState />;
+
+  if (error || !data) {
+    const msg =
+      (error as { data?: { error?: string } })?.data?.error ??
+      'Could not load results. The session may not have been evaluated yet, or you may need to log in.';
+    return <ErrorState message={msg} />;
+  }
+
+  return <ResultsView session={data} />;
 }
