@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:mentorship-panel.vercel.app)",
+      "Read(//c/iVoyant/Projects/Innovative Project \\(AI Interviewer\\)/ai_interviewer/**)",
+      "Bash(grep -E '\\\\.\\(tsx|ts|jsx|js\\)$')",
+      "Bash(node -e \"const p=require\\('/c/iVoyant/Projects/Innovative Project \\(AI Interviewer\\)/ai-interviewer-next/node_modules/next/package.json'\\); console.log\\(p.version\\)\")",
+      "PowerShell(\\(Get-Content 'c:\\\\iVoyant\\\\Projects\\\\Innovative Project \\(AI Interviewer\\)\\\\ai-interviewer-next\\\\node_modules\\\\next\\\\package.json' -Raw | ConvertFrom-Json\\).version)",
+      "Bash(yarn add *)"
+    ]
+  }
+}

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DOMAIN_TOPICS, DOMAIN_ICONS, DOMAIN_LABELS } from "@/lib/constants";
+import { DOMAIN_TOPICS, DOMAIN_ICONS } from "@/lib/constants";
 import type { StoredSessionInfo } from "@/lib/types";
 
-export default function HomePage() {
+export default function UserInterviewPage() {
   const router = useRouter();
   const [candidateName, setCandidateName] = useState("");
   const [candidateEmail, setCandidateEmail] = useState("");
@@ -16,6 +16,19 @@ export default function HomePage() {
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)tg_user=([^;]+)/);
+      if (match) {
+        const parsed = JSON.parse(decodeURIComponent(match[1]));
+        if (parsed.name) setCandidateName(parsed.name);
+        if (parsed.email) setCandidateEmail(parsed.email);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const domains = Object.keys(DOMAIN_TOPICS);
 
@@ -33,11 +46,11 @@ export default function HomePage() {
   async function handleStart() {
     setError("");
     if (!candidateName.trim()) {
-      setError("Please enter the candidate name.");
+      setError("Candidate name is missing from your profile.");
       return;
     }
-    if (!candidateEmail.trim() || !candidateEmail.includes("@")) {
-      setError("Please enter a valid email.");
+    if (!candidateEmail.trim()) {
+      setError("Candidate email is missing from your profile.");
       return;
     }
     if (selectedTopics.length === 0) {
@@ -84,7 +97,7 @@ export default function HomePage() {
   const currentTopics = DOMAIN_TOPICS[selectedDomain] ?? [];
 
   return (
-    <div style={{ padding: "2rem 2rem", maxWidth: 1260 }}>
+    <div style={{ padding: "2rem 2.5rem", maxWidth: 1100 }}>
       {/* Page Header */}
       <div
         style={{
@@ -104,7 +117,7 @@ export default function HomePage() {
               letterSpacing: "-0.5px",
             }}
           >
-            New Interview
+            Take Interview
           </h1>
           <p
             style={{
@@ -113,11 +126,11 @@ export default function HomePage() {
               fontSize: "0.9rem",
             }}
           >
-            Set up an AI-powered interview session for a candidate.
+            Select your domain and topics to begin your AI-powered interview.
           </p>
         </div>
         <Link
-          href="/dashboard"
+          href="/user/dashboard"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -131,7 +144,7 @@ export default function HomePage() {
             textDecoration: "none",
           }}
         >
-          ← Dashboard
+          ← My Dashboard
         </Link>
       </div>
 
@@ -170,7 +183,7 @@ export default function HomePage() {
 
       {/* Two-column layout */}
       <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start" }}>
-        {/* Left column: form sections */}
+        {/* Left column */}
         <div
           style={{
             flex: "1 1 0",
@@ -180,7 +193,7 @@ export default function HomePage() {
             gap: "1.25rem",
           }}
         >
-          {/* Candidate Information */}
+          {/* Candidate Info (read-only) */}
           <div
             style={{
               background: "var(--surface)",
@@ -226,7 +239,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h2 style={{ fontSize: "0.95rem", fontWeight: 700 }}>
-                  Candidate Information
+                  Your Profile
                 </h2>
                 <p
                   style={{
@@ -235,7 +248,7 @@ export default function HomePage() {
                     marginTop: "0.05rem",
                   }}
                 >
-                  Enter the candidate&apos;s basic details
+                  Interview will be recorded under these details
                 </p>
               </div>
             </div>
@@ -245,74 +258,58 @@ export default function HomePage() {
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
                 gap: "1rem",
+                padding: "0.9rem 1rem",
+                background: "rgba(59,130,246,0.04)",
+                border: "1px solid rgba(59,130,246,0.12)",
+                borderRadius: 8,
               }}
             >
               <div>
-                <label
+                <div
                   style={{
-                    fontSize: "0.78rem",
+                    fontSize: "0.72rem",
                     color: "var(--text-muted)",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
-                    marginBottom: "0.4rem",
-                    display: "block",
+                    marginBottom: "0.3rem",
                     fontWeight: 600,
                   }}
                 >
                   Full Name
-                </label>
-                <input
-                  type="text"
-                  value={candidateName}
-                  onChange={(e) => setCandidateName(e.target.value)}
-                  placeholder="e.g. Arjun Sharma"
-                  autoComplete="off"
+                </div>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "0.6rem 0.85rem",
-                    borderRadius: 8,
-                    background: "var(--surface2)",
-                    border: "1px solid var(--border)",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
                     color: "var(--text)",
-                    fontFamily: "var(--font)",
-                    fontSize: "0.875rem",
-                    outline: "none",
-                    boxSizing: "border-box",
                   }}
-                />
+                >
+                  {candidateName || "—"}
+                </div>
               </div>
               <div>
-                <label
+                <div
                   style={{
-                    fontSize: "0.78rem",
+                    fontSize: "0.72rem",
                     color: "var(--text-muted)",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
-                    marginBottom: "0.4rem",
-                    display: "block",
+                    marginBottom: "0.3rem",
                     fontWeight: 600,
                   }}
                 >
                   Email Address
-                </label>
-                <input
-                  type="email"
-                  value={candidateEmail}
-                  onChange={(e) => setCandidateEmail(e.target.value)}
-                  placeholder="arjun@company.com"
+                </div>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "0.6rem 0.85rem",
-                    borderRadius: 8,
-                    background: "var(--surface2)",
-                    border: "1px solid var(--border)",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
                     color: "var(--text)",
-                    fontFamily: "var(--font)",
-                    fontSize: "0.875rem",
-                    outline: "none",
-                    boxSizing: "border-box",
+                    wordBreak: "break-all",
                   }}
-                />
+                >
+                  {candidateEmail || "—"}
+                </div>
               </div>
             </div>
           </div>
@@ -372,7 +369,7 @@ export default function HomePage() {
                     marginTop: "0.05rem",
                   }}
                 >
-                  Choose the technical area to evaluate
+                  Choose the technical area to be evaluated in
                 </p>
               </div>
             </div>
@@ -417,7 +414,7 @@ export default function HomePage() {
                   >
                     {DOMAIN_ICONS[domain] ?? "💻"}
                   </span>
-                  {DOMAIN_LABELS[domain] ?? domain.toUpperCase()}
+                  {domain.charAt(0).toUpperCase() + domain.slice(1)}
                 </button>
               ))}
             </div>
@@ -601,7 +598,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right column: session info + start */}
+        {/* Right column */}
         <div
           style={{
             width: 280,
@@ -643,8 +640,8 @@ export default function HomePage() {
                 {
                   label: "Domain",
                   value:
-                    DOMAIN_LABELS[selectedDomain] ??
-                    selectedDomain.toUpperCase(),
+                    selectedDomain.charAt(0).toUpperCase() +
+                    selectedDomain.slice(1),
                   icon: DOMAIN_ICONS[selectedDomain] ?? "💻",
                 },
                 {
@@ -801,13 +798,13 @@ export default function HomePage() {
               {[
                 {
                   step: "1",
-                  label: "Fill details",
-                  desc: "Enter candidate info and select domain",
+                  label: "Choose domain",
+                  desc: "Select the technical area and topics",
                 },
                 {
                   step: "2",
                   label: "Voice interview",
-                  desc: "AI asks questions, candidate responds",
+                  desc: "AI asks questions, you respond",
                 },
                 {
                   step: "3",
@@ -872,7 +869,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Quick links */}
+          {/* Quick Links */}
           <div
             style={{
               background: "var(--surface)",
@@ -898,9 +895,8 @@ export default function HomePage() {
               }}
             >
               {[
-                { href: "/candidates", label: "View all candidates" },
-                { href: "/review-queue", label: "Review queue" },
-                { href: "/analytics", label: "Analytics" },
+                { href: "/user/dashboard", label: "My Dashboard" },
+                { href: "/user/analysis", label: "My Analysis" },
               ].map(({ href, label }) => (
                 <a
                   key={href}
