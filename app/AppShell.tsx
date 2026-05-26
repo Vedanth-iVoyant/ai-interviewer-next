@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 
-const AUTH_PATHS = ['/login', '/signup'];
+const AUTH_PATHS = ['/login', '/signup', '/interview'];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

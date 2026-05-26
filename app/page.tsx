@@ -46,39 +46,28 @@ export default function HomePage() {
       return;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch("/api/proxy/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidate_name: candidateName,
-          candidate_email: candidateEmail,
-          domain: selectedDomain,
-          topics: selectedTopics,
-        }),
-      });
-      const data = await res.json();
-      if (data.session_id) {
-        const sessionInfo: StoredSessionInfo = {
-          id: data.session_id,
-          candidate_name: candidateName,
-          candidate_email: candidateEmail,
-          domain: selectedDomain,
-          topics: selectedTopics,
-        };
-        localStorage.setItem(
-          `session_${data.session_id}`,
-          JSON.stringify(sessionInfo),
-        );
-        router.push(`/interview/${data.session_id}`);
-      } else {
-        setError(data.error ?? "Failed to start session.");
-        setLoading(false);
-      }
-    } catch {
-      setError("Network error. Please try again.");
-      setLoading(false);
+      const data = await createSession({
+        candidate_name: candidateName,
+        candidate_email: candidateEmail,
+        domain: selectedDomain,
+        topics: selectedTopics,
+      }).unwrap();
+
+      const sessionInfo: StoredSessionInfo = {
+        id: data.session_id,
+        candidate_name: candidateName,
+        candidate_email: candidateEmail,
+        domain: selectedDomain,
+        topics: selectedTopics,
+      };
+      localStorage.setItem(`session_${data.session_id}`, JSON.stringify(sessionInfo));
+      router.push(`/interview/${data.session_id}`);
+    } catch (err) {
+      const msg = (err as { data?: { detail?: string; error?: string } })?.data?.detail
+        ?? (err as { data?: { detail?: string; error?: string } })?.data?.error
+        ?? "Failed to start session.";
+      setError(msg);
     }
   }
 

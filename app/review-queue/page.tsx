@@ -12,7 +12,7 @@ export default async function ReviewQueuePage() {
   }).length;
 
   const bestSessionId = evaluated.reduce<number | null>((best, s) => {
-    if (s.overall_score === null) return best;
+    if (s.overall_score === null || s.result !== 'pass') return best;
     if (best === null) return s.id;
     const bestScore = evaluated.find((x) => x.id === best)?.overall_score ?? 0;
     return s.overall_score > bestScore ? s.id : best;

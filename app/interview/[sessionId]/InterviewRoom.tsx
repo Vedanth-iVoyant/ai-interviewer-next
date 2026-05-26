@@ -76,17 +76,37 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
   const answerSubmittedRef = useRef(false);
   const currentQuestionRef = useRef<QuestionState | null>(null);
   const totalQRef = useRef(TOTAL_QUESTIONS);
+  // Prevents React Strict Mode double-invocation from creating duplicate questions
+  const initializedRef = useRef(false);
+  // Pre-granted mic stream reused across all questions
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     setupSpeechRecognition();
-    loadNextQuestion();
+    requestMicThenStart();
     return () => {
       clearTimerInterval();
       if (waveAnimRef.current) cancelAnimationFrame(waveAnimRef.current);
       if (speechRecRef.current) { try { speechRecRef.current.stop(); } catch { /* noop */ } }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(t => t.stop());
+        micStreamRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // Request mic permission upfront (dialog appears on the loading screen, not mid-question)
+  async function requestMicThenStart() {
+    try {
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      // Permission denied — user will see error when they try to record
+    }
+    await loadNextQuestion();
+  }
 
   // ── Speech Recognition ────────────────────────────────────────
   function setupSpeechRecognition() {
@@ -160,6 +180,7 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
 
   // ── Question flow ─────────────────────────────────────────────
   async function loadNextQuestion() {
+    window.speechSynthesis?.cancel();
     setScreen('loading');
     resetTimer();
 
@@ -206,13 +227,15 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
     startCountdown(q.thinkTime, '#FFD700', () => startAnswerTimer(q));
   }
 
-  function startAnswerTimer(q: QuestionState) {
+  async function startAnswerTimer(q: QuestionState) {
     setPhase('speak');
     setMicBtnDisabled(false);
     setNextBtnDisabled(false);
     setVoiceStatus('Recording active – speak your answer');
     setVoiceStatusClass('active');
-    startRecording();
+    // Await recording so the countdown starts only after the mic is live
+    // (stream is pre-granted so this resolves immediately — no permission dialog)
+    await startRecording();
     startCountdown(q.answerTime, '#00d4aa', () => {
       stopRecording();
       setPhase('idle');
@@ -226,19 +249,28 @@ export default function InterviewRoom({ sessionId }: { sessionId: number }) {
     if (speechRecRef.current) {
       try { speechRecRef.current.start(); } catch { /* already started */ }
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      mr.ondataavailable = e => audioChunksRef.current.push(e.data);
-      mr.start(100);
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-      startWaveform(stream);
-    } catch {
-      setVoiceStatus('Microphone denied. Please type your answer.');
-      setVoiceStatusClass('error');
+
+    // Reuse the pre-granted stream; only re-request if it was closed or denied
+    let stream = micStreamRef.current;
+    const isLive = stream?.getTracks().some(t => t.readyState === 'live');
+    if (!stream || !isLive) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+      } catch {
+        setVoiceStatus('Microphone denied. Please type your answer.');
+        setVoiceStatusClass('error');
+        return;
+      }
     }
+
+    const mr = new MediaRecorder(stream);
+    audioChunksRef.current = [];
+    mr.ondataavailable = e => audioChunksRef.current.push(e.data);
+    mr.start(100);
+    mediaRecorderRef.current = mr;
+    setIsRecording(true);
+    startWaveform(stream);
   }
 
   function stopRecording() {
